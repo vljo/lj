@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Webhook Journal</title>
+  <style>
+    .container {
+      max-width: 500px;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .message {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      display: none;
+    }
+    .success {
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+      color: #155724;
+    }
+    .error {
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+      color: #721c24;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <label for="webhookUrl">Discord Webhook URL:</label>
+    <input type="text" id="webhookUrl" placeholder="Enter Discord Webhook URL"><br>
+  
+    <label for="workoutReps">Workout Reps:</label>
+    <input type="text" id="workoutReps" placeholder="Enter number of reps">
+  
+    <label for="workoutMuscle">Workout Muscle:</label>
+    <select id="workoutMuscle">
+      <option value="chest">Chest</option>
+      <option value="back">Back</option>
+      <option value="tri">Triceps</option>
+      <option value="bi">Biceps</option>
+      <option value="shoulder">Shoulder</option>
+      <option value="other">Other</option>
+    </select>
+  
+    <label for="grateful">Most Grateful For:</label>
+    <textarea id="grateful" rows="4" placeholder="Enter what you're most grateful for"></textarea>
+  
+    <label for="productive">Most Productive Accomplishment:</label>
+    <textarea id="productive" rows="4" placeholder="Enter your most productive accomplishment"></textarea>
+  
+    <button onclick="sendMessage()">Add Journal Entry</button>
+  
+    <div class="message" id="messageBox"></div>
+  </div>
+  
+  <script>
+    // Function to send message to Discord webhook
+    function sendMessage() {
+      var webhookUrl = document.getElementById('webhookUrl').value.trim();
+      var workoutReps = document.getElementById('workoutReps').value.trim();
+      var workoutMuscle = document.getElementById('workoutMuscle').value.trim();
+      var grateful = document.getElementById('grateful').value.trim();
+      var productive = document.getElementById('productive').value.trim();
+      var messageBox = document.getElementById('messageBox');
+  
+      messageBox.textContent = ''; // Clear previous message
+  
+      if (!webhookUrl || !workoutReps || !workoutMuscle || !grateful || !productive) {
+        displayMessage('Please fill out all fields.', 'error');
+        return;
+      }
+  
+      // Save webhook URL to local storage
+      localStorage.setItem('discordWebhookUrl', webhookUrl);
+  
+      // Prepare data object
+      var data = {
+        workout: {
+          reps: workoutReps,
+          muscle: workoutMuscle
+        },
+        grateful: grateful,
+        productive: productive,
+        day: new Date()
+      };
+
+      function prettyPrintJSON(data) {
+        return '```json\n' + JSON.stringify(data, null, 2) + '\n```';
+      }
+
+      // Send message to Discord webhook
+      var formattedData = prettyPrintJSON(data);
+
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ content: formattedData })
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to send message to Discord webhook.');
+        }
+        displayMessage('Journal entry added!', 'success');
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        displayMessage('Failed to send message. Please try again later.', 'error');
+      });
+    }
+  
+    // Function to display message to user
+    function displayMessage(text, type) {
+      var messageBox = document.getElementById('messageBox');
+      messageBox.textContent = text;
+      messageBox.className = 'message ' + type;
+      messageBox.style.display = 'block';
+    }
+  
+    // Check if webhook URL is stored in local storage
+    window.onload = function() {
+      var storedWebhookUrl = localStorage.getItem('discordWebhookUrl');
+      if (storedWebhookUrl) {
+        document.getElementById('webhookUrl').value = storedWebhookUrl;
+      }
+    };
+  </script>
+</body>
+</html>
+
