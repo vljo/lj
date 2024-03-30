@@ -61,7 +61,7 @@
     <input type="text" id="webhookUrl" placeholder="Enter Discord Webhook URL"><br>
   
     <label for="workoutReps">Workout Reps:</label>
-    <input type="text" id="workoutReps" placeholder="Enter number of reps">
+    <input type="text" id="workoutReps" placeholder="Last five days' workouts"><br> <!-- Modified placeholder -->
   
     <label for="workoutMuscle">Workout Muscle:</label>
     <select id="workoutMuscle">
@@ -96,13 +96,21 @@
   
       messageBox.textContent = ''; // Clear previous message
   
-      if (!webhookUrl || !workoutReps || !workoutMuscle || !grateful || !productive) {
+      if (!webhookUrl || !workoutMuscle || !grateful || !productive) {
         displayMessage('Please fill out all fields.', 'error');
         return;
       }
   
       // Save webhook URL to local storage
       localStorage.setItem('discordWebhookUrl', webhookUrl);
+  
+      // Save workout data to local storage
+      var workoutData = JSON.parse(localStorage.getItem('workoutData')) || [];
+      workoutData.push({ reps: workoutReps, muscle: workoutMuscle, date: new Date().toISOString() });
+      localStorage.setItem('workoutData', JSON.stringify(workoutData));
+  
+      // Display the most recent five workouts in the input field placeholder
+      displayRecentWorkouts();
   
       // Prepare data object
       var data = {
@@ -148,6 +156,15 @@
       messageBox.className = 'message ' + type;
       messageBox.style.display = 'block';
     }
+
+    // Function to display the most recent five workouts in the input field placeholder
+    function displayRecentWorkouts() {
+      var workoutData = JSON.parse(localStorage.getItem('workoutData')) || [];
+      var recentWorkouts = workoutData.slice(-5).map(function(item) {
+        return item.reps + 'x' + item.muscle;
+      });
+      document.getElementById('workoutReps').placeholder = recentWorkouts.join(', ');
+    }
   
     // Check if webhook URL is stored in local storage
     window.onload = function() {
@@ -155,8 +172,9 @@
       if (storedWebhookUrl) {
         document.getElementById('webhookUrl').value = storedWebhookUrl;
       }
+      // Display the most recent five workouts in the input field placeholder on page load
+      displayRecentWorkouts();
     };
   </script>
 </body>
 </html>
-
