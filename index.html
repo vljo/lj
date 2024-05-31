@@ -59,9 +59,15 @@
   <div class="container">
     <label for="webhookUrl">Discord Webhook URL:</label>
     <input type="text" id="webhookUrl" placeholder="Enter Discord Webhook URL"><br>
+    
+    <label for="todoistToken">Todoist API Token:</label>
+    <input type="text" id="todoistToken" placeholder="Enter Todoist API Token"><br>
+
+    <label for="todoistTask">Todoist Task:</label>
+    <textarea id="todoistTask" rows="4" placeholder="Enter tasks, one per line"></textarea><br>
   
     <label for="workoutReps">Workout Reps:</label>
-    <input type="text" id="workoutReps" placeholder="Last five days' workouts"><br> <!-- Modified placeholder -->
+    <input type="text" id="workoutReps" placeholder="Last five days' workouts"><br>
   
     <label for="workoutMuscle">Workout Muscle:</label>
     <select id="workoutMuscle">
@@ -80,14 +86,17 @@
     <textarea id="productive" rows="4" placeholder="Enter your most productive accomplishment"></textarea>
   
     <button onclick="sendMessage()">Add Journal Entry</button>
+    <button onclick="downloadJournal()">Download Journal</button>
   
     <div class="message" id="messageBox"></div>
   </div>
   
   <script>
-    // Function to send message to Discord webhook
+    // Function to send message to Discord webhook and add task to Todoist
     function sendMessage() {
       var webhookUrl = document.getElementById('webhookUrl').value.trim();
+      var todoistToken = document.getElementById('todoistToken').value.trim();
+      var todoistTask = document.getElementById('todoistTask').value.trim();
       var workoutReps = document.getElementById('workoutReps').value.trim();
       var workoutMuscle = document.getElementById('workoutMuscle').value.trim();
       var grateful = document.getElementById('grateful').value.trim();
@@ -96,13 +105,14 @@
   
       messageBox.textContent = ''; // Clear previous message
   
-      if (!webhookUrl || !workoutMuscle || !grateful || !productive) {
+      if (!webhookUrl || !todoistToken || !todoistTask || !workoutMuscle || !grateful || !productive) {
         displayMessage('Please fill out all fields.', 'error');
         return;
       }
   
-      // Save webhook URL to local storage
+      // Save webhook URL and Todoist API token to local storage
       localStorage.setItem('discordWebhookUrl', webhookUrl);
+      localStorage.setItem('todoistApiToken', todoistToken);
   
       // Save workout data to local storage
       var workoutData = JSON.parse(localStorage.getItem('workoutData')) || [];
@@ -111,8 +121,9 @@
   
       // Display the most recent five workouts in the input field placeholder
       displayRecentWorkouts();
-  
+
       // Prepare data object
+      var day = new Date().toString();
       var data = {
         workout: {
           reps: workoutReps,
@@ -120,15 +131,23 @@
         },
         grateful: grateful,
         productive: productive,
-        day: new Date()
+        day: day
       };
 
+      // Append data to journal in local storage
+      var journal = JSON.parse(localStorage.getItem('journal')) || {};
+      if (!journal[day]) {
+        journal[day] = [];
+      }
+      journal[day].push(data);
+      localStorage.setItem('journal', JSON.stringify(journal));
+  
       function prettyPrintJSON(data) {
         return '```json\n' + JSON.stringify(data, null, 2) + '\n```';
       }
 
       // Send message to Discord webhook
-      var formattedData = prettyPrintJSON(data);
+      var formattedData = prettyPrintJSON({ [day]: data });
 
       fetch(webhookUrl, {
         method: 'POST',
@@ -147,8 +166,49 @@
         console.error('Error:', error);
         displayMessage('Failed to send message. Please try again later.', 'error');
       });
+
+      // Add tasks to Todoist
+      var tasks = todoistTask.split('\n').filter(task => task.trim() !== '');
+      tasks.forEach(task => addTaskToTodoist(task, todoistToken));
     }
   
+    // Function to add task to Todoist
+    function addTaskToTodoist(taskContent, apiToken) {
+      const now = new Date();
+      let dueDate = now.toISOString().split('T')[0]; // Default to today
+
+      if (now.getHours() >= 12) {
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1);
+        dueDate = tomorrow.toISOString().split('T')[0];
+      }
+
+      const url = 'https://api.todoist.com/rest/v2/tasks';
+
+      const task = {
+        content: taskContent,
+        due_string: dueDate
+      };
+
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiToken}`
+        },
+        body: JSON.stringify(task)
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Task added:', data);
+        displayMessage('Journal entry and Todoist task added!', 'success');
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        displayMessage('Failed to add Todoist task. Please try again later.', 'error');
+      });
+    }
+
     // Function to display message to user
     function displayMessage(text, type) {
       var messageBox = document.getElementById('messageBox');
@@ -165,16 +225,33 @@
       });
       document.getElementById('workoutReps').placeholder = recentWorkouts.join(', ');
     }
-  
-    // Check if webhook URL is stored in local storage
+
+    // Function to download journal data as JSON file
+    function downloadJournal() {
+      var journal = JSON.parse(localStorage.getItem('journal')) || {};
+      var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(journal, null, 2));
+      var downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", "journal.json");
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    }
+
+    // Check if webhook URL and Todoist API token are stored in local storage
     window.onload = function() {
       var storedWebhookUrl = localStorage.getItem('discordWebhookUrl');
       if (storedWebhookUrl) {
         document.getElementById('webhookUrl').value = storedWebhookUrl;
       }
+      var storedTodoistToken = localStorage.getItem('todoistApiToken');
+      if (storedTodoistToken) {
+        document.getElementById('todoistToken').value = storedTodoistToken;
+      }
       // Display the most recent five workouts in the input field placeholder on page load
       displayRecentWorkouts();
     };
+
   </script>
 </body>
 </html>
