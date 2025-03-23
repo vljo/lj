@@ -123,15 +123,14 @@
       displayRecentWorkouts();
 
       // Prepare data object
-      var day = new Date().toString();
+      var day = new Date().toLocaleDateString();
       var data = {
-        workout: {
-          reps: workoutReps,
-          muscle: workoutMuscle
-        },
+        day : new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString() ,
+        reps: workoutReps,
+        muscle: workoutMuscle,
         grateful: grateful,
         productive: productive,
-        day: day
       };
 
       // Append data to journal in local storage
@@ -147,7 +146,7 @@
       }
 
       // Send message to Discord webhook
-      var formattedData = prettyPrintJSON({ [day]: data });
+      var formattedData = prettyPrintJSON(data);
 
       fetch(webhookUrl, {
         method: 'POST',
